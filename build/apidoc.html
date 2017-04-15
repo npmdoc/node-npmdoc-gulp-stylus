@@ -63,6 +63,15 @@
 
         <li>
 
+            <a class="apidocElementLiA" href="#apidoc.element.gulp-stylus.gulp-stylus">
+            function <span class="apidocSignatureSpan"></span>gulp-stylus
+            <span class="apidocSignatureSpan">(options)</span>
+            </a>
+
+        </li>
+
+        <li>
+
             <a class="apidocElementLiA" href="#apidoc.element.gulp-stylus.stylus">
             function <span class="apidocSignatureSpan">gulp-stylus.</span>stylus
             <span class="apidocSignatureSpan">(str, options)</span>
@@ -111,6 +120,15 @@
             <a class="apidocElementLiA" href="#apidoc.element.gulp-stylus.stylus.Visitor">
             function <span class="apidocSignatureSpan">gulp-stylus.</span>stylus.Visitor
             <span class="apidocSignatureSpan">(root)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.gulp-stylus.toString">
+            function <span class="apidocSignatureSpan">gulp-stylus.</span>toString
+            <span class="apidocSignatureSpan">()</span>
             </a>
 
         </li>
@@ -5041,6 +5059,63 @@
 
 
     <h2>
+        <a href="#apidoc.element.gulp-stylus.gulp-stylus" id="apidoc.element.gulp-stylus.gulp-stylus">
+        function <span class="apidocSignatureSpan"></span>gulp-stylus
+        <span class="apidocSignatureSpan">(options)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">gulp-stylus = function (options) {
+  var opts = assign({}, options);
+
+  return through.obj(function (file, enc, cb) {
+
+    if (file.isStream()) {
+      return cb(guErr(&#x27;Streaming not supported&#x27;));
+    }
+    if (file.isNull()) {
+      return cb(null, file);
+    }
+    if (extname(file.path) === &#x27;.css&#x27;) {
+      return cb(null, file);
+    }
+    if (file.sourceMap || opts.sourcemap) {
+      opts.sourcemap = assign({basePath: file.base}, opts.sourcemap);
+    }
+    if (file.data) {
+      opts.define = file.data;
+    }
+    opts.filename = file.path;
+
+    stylus.render(file.contents.toString(enc || &#x27;utf-8&#x27;), opts)
+      .catch(function(err) {
+        delete err.input;
+        return cb(guErr(err));
+      })
+      .done(function(res) {
+        if (res == null) {
+          return;
+        }
+        if (res.result !== undefined) {
+          file.path = rext(file.path, &#x27;.css&#x27;);
+          if (res.sourcemap) {
+            res.result = res.result.replace(/\/\*[@#][\s\t]+sourceMappingURL=.*?\*\/$/mg, &#x27;&#x27;);
+            res.sourcemap.file = file.relative;
+            applySourceMap(file, res.sourcemap);
+          }
+          file.contents = new Buffer(res.result);
+          return cb(null, file);
+        }
+      });
+  });
+
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
         <a href="#apidoc.element.gulp-stylus.stylus" id="apidoc.element.gulp-stylus.stylus">
         function <span class="apidocSignatureSpan">gulp-stylus.</span>stylus
         <span class="apidocSignatureSpan">(str, options)</span>
@@ -5174,6 +5249,37 @@
   this.root = root;
 }</pre></li>
     <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.gulp-stylus.toString" id="apidoc.element.gulp-stylus.toString">
+        function <span class="apidocSignatureSpan">gulp-stylus.</span>toString
+        <span class="apidocSignatureSpan">()</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">toString = function () {
+    return toString;
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+  opts.sourcemap = assign({basePath: file.base}, opts.sourcemap);
+}
+if (file.data) {
+  opts.define = file.data;
+}
+opts.filename = file.path;
+
+stylus.render(file.contents.<span class="apidocCodeKeywordSpan">toString</span>(enc || &#x27;utf-8&#x27;), opts)
+  .catch(function(err) {
+    delete err.input;
+    return cb(guErr(err));
+  })
+  .done(function(res) {
+    if (res == null) {
+      return;
+...</pre></li>
     </ul>
 
 
