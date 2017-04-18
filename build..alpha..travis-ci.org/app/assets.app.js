@@ -552,7 +552,8 @@ local.templateApidocHtml = '\
             );
             local.objectSetDefault(options, {
                 env: {},
-                packageJson: JSON.parse(readExample('package.json'))
+                packageJson: JSON.parse(readExample('package.json')),
+                require: require
             });
             Object.keys(options.packageJson).forEach(function (key) {
                 tmp = options.packageJson[key];
@@ -606,7 +607,7 @@ local.templateApidocHtml = '\
                 console.error('apidocCreate - requiring ' + options.dir + ' ...');
                 moduleMain = {};
                 moduleMain = options.moduleDict[options.env.npm_package_name] ||
-                    require(options.dir);
+                    options.require(options.dir);
                 console.error('apidocCreate - ... required ' + options.dir);
             } catch (ignore) {
             }
@@ -632,7 +633,8 @@ local.templateApidocHtml = '\
             // init circularList - builtin
             Object.keys(process.binding('natives')).forEach(function (key) {
                 if (!(/\/|_linklist|sys/).test(key)) {
-                    options.blacklistDict[key] = options.blacklistDict[key] || require(key);
+                    options.blacklistDict[key] = options.blacklistDict[key] ||
+                        options.require(key);
                 }
             });
             // init circularList - blacklistDict
@@ -708,7 +710,7 @@ local.templateApidocHtml = '\
                     if (tmp.skip) {
                         return;
                     }
-                    tmp.module = require(options.dir + '/' + file);
+                    tmp.module = options.require(options.dir + '/' + file);
                     if (options.circularList.indexOf(tmp.module) >= 0) {
                         return;
                     }
@@ -716,7 +718,7 @@ local.templateApidocHtml = '\
                     // update exampleList
                     options.exampleList.push(readExample(file));
                     console.error('apidocCreate - ' + options.exampleList.length +
-                        '. added libFile ' + tmp.name);
+                        '. added libFile ' + file);
                 } catch (errorCaught) {
                     console.error(errorCaught);
                 }
@@ -2145,7 +2147,7 @@ local.templateApidocHtml = '\
                 : value;
         };
 
-        local.dbRowListGetManyByOperator = function (dbRowList, fieldName, operator, bb) {
+        local.dbRowListGetManyByOperator = function (dbRowList, fieldName, operator, bb, not) {
         /*
          * this function will get the dbRow's in dbRowList with the given operator
          */
@@ -2252,7 +2254,7 @@ local.templateApidocHtml = '\
                 }
                 // optimization - for-loop
                 for (jj = fieldValue.length - 1; jj >= 0; jj -= 1) {
-                    if (test(fieldValue[jj], bb, typeof fieldValue[jj], typeof2)) {
+                    if (not ^ test(fieldValue[jj], bb, typeof fieldValue[jj], typeof2)) {
                         result.push(dbRowList[ii]);
                         break;
                     }
@@ -2261,19 +2263,28 @@ local.templateApidocHtml = '\
             return result;
         };
 
-        local.dbRowListGetManyByQuery = function (dbRowList, query, fieldName) {
+        local.dbRowListGetManyByQuery = function (dbRowList, query, fieldName, not) {
         /*
          * this function will get the dbRow's in dbRowList with the given query
          */
             var bb, dbRowDict, result;
+            not = !!not;
             result = dbRowList;
             if (!(query && typeof query === 'object')) {
-                result = local.dbRowListGetManyByOperator(result, fieldName, '$eq', query);
+                result = local.dbRowListGetManyByOperator(result, fieldName, '$eq', query, not);
                 return result;
             }
             Object.keys(query).some(function (key) {
                 bb = query[key];
-                if (key === '$or' && Array.isArray(bb)) {
+                switch (key) {
+                case '$not':
+                    key = fieldName;
+                    not = !not;
+                    break;
+                case '$or':
+                    if (!Array.isArray(bb)) {
+                        break;
+                    }
                     dbRowDict = {};
                     bb.forEach(function (query) {
                         // recurse
@@ -2287,11 +2298,11 @@ local.templateApidocHtml = '\
                     return !result.length;
                 }
                 if (key[0] === '$') {
-                    result = local.dbRowListGetManyByOperator(result, fieldName, key, bb);
+                    result = local.dbRowListGetManyByOperator(result, fieldName, key, bb, not);
                     return !result.length;
                 }
                 // recurse
-                result = local.dbRowListGetManyByQuery(result, bb, key);
+                result = local.dbRowListGetManyByQuery(result, bb, key, not);
                 return !result.length;
             });
             return result;
@@ -10091,7 +10102,10 @@ shBuildCi\n\
 
 
 local.assetsDict['/assets.readmeCustomOrg.npmdoc.template.md'] = '\
-# api documentation for \
+# npmdoc-{{env.npm_package_name}} \
+\n\
+\n\
+api documentation for \
 {{#if env.npm_package_homepage}} \
 [{{env.npm_package_name}} (v{{env.npm_package_version}})]({{env.npm_package_homepage}}) \
 {{#unless env.npm_package_homepage}} \
@@ -10100,7 +10114,8 @@ local.assetsDict['/assets.readmeCustomOrg.npmdoc.template.md'] = '\
 [![npm package](https://img.shields.io/npm/v/npmdoc-{{env.npm_package_name}}.svg?style=flat-square)](https://www.npmjs.org/package/npmdoc-{{env.npm_package_name}}) \
 [![travis-ci.org build-status](https://api.travis-ci.org/npmdoc/node-npmdoc-{{env.npm_package_name}}.svg)](https://travis-ci.org/npmdoc/node-npmdoc-{{env.npm_package_name}}) \
 \n\
-#### {{env.npm_package_description}} \
+\n\
+{{env.npm_package_description}} \
 \n\
 \n\
 [![NPM](https://nodei.co/npm/{{env.npm_package_name}}.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/{{env.npm_package_name}}) \
@@ -10140,7 +10155,10 @@ local.assetsDict['/assets.readmeCustomOrg.npmdoc.template.md'] = '\
 
 
 local.assetsDict['/assets.readmeCustomOrg.npmtest.template.md'] = '\
-# test coverage for \
+# npmtest-{{env.npm_package_name}} \
+\n\
+\n\
+test coverage for \
 {{#if env.npm_package_homepage}} \
 [{{env.npm_package_name}} (v{{env.npm_package_version}})]({{env.npm_package_homepage}}) \
 {{#unless env.npm_package_homepage}} \
@@ -10149,7 +10167,8 @@ local.assetsDict['/assets.readmeCustomOrg.npmtest.template.md'] = '\
 [![npm package](https://img.shields.io/npm/v/npmtest-{{env.npm_package_name}}.svg?style=flat-square)](https://www.npmjs.org/package/npmtest-{{env.npm_package_name}}) \
 [![travis-ci.org build-status](https://api.travis-ci.org/npmtest/node-npmtest-{{env.npm_package_name}}.svg)](https://travis-ci.org/npmtest/node-npmtest-{{env.npm_package_name}}) \
 \n\
-#### {{env.npm_package_description}} \
+\n\
+{{env.npm_package_description}} \
 \n\
 \n\
 [![NPM](https://nodei.co/npm/{{env.npm_package_name}}.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/{{env.npm_package_name}}) \
@@ -12123,7 +12142,7 @@ return Utf8ArrayToStr(bff);
                 // try to recover from error
                 setTimeout(onError, error && local.timeoutDefault);
             };
-            // try to salvage uncaughtException
+            // try to recover from uncaughtException
             process.on('uncaughtException', onError2);
             onParallel = local.utility2.onParallel(onError2);
             onParallel.counter += 1;
@@ -12167,9 +12186,7 @@ return Utf8ArrayToStr(bff);
             });
             local.fs.writeFileSync('README.md', options.readme);
             // re-build package.json
-            options.packageJson.description = (/\w.*/).exec(options.readme)[0]
-                .replace((/ {2,}/g), ' ')
-                .trim();
+            options.packageJson.description = options.readme.split('\n')[2].trim();
             local.fs.writeFileSync(
                 'package.json',
                 local.jsonStringifyOrdered(options.packageJson, null, 4) + '\n'
@@ -12451,31 +12468,42 @@ return Utf8ArrayToStr(bff);
                     local.onParallelList({
                         list: [{
                             offset: 0,
-                            limit: 100,
                             sort_by: 'asc'
                         }, {
                             offset: 100,
-                            limit: 100,
+                            sort_by: 'asc'
+                        }, {
+                            offset: 200,
+                            sort_by: 'asc'
+                        }, {
+                            offset: 300,
+                            sort_by: 'asc'
+                        }, {
+                            offset: 400,
                             sort_by: 'asc'
                         }, {
                             offset: Math.floor(Math.random() * count) - 100,
-                            limit: 100,
                             sort_by: 'asc'
                         }, {
                             offset: Math.floor(Math.random() * count) - 100,
-                            limit: 100,
                             sort_by: 'asc'
                         }, {
                             offset: 0,
-                            limit: 50,
+                            sort_by: 'desc'
+                        }, {
+                            offset: count - 500,
+                            sort_by: 'desc'
+                        }, {
+                            offset: count - 400,
+                            sort_by: 'desc'
+                        }, {
+                            offset: count - 300,
                             sort_by: 'desc'
                         }, {
                             offset: count - 200,
-                            limit: 100,
                             sort_by: 'desc'
                         }, {
                             offset: count - 100,
-                            limit: 100,
                             sort_by: 'desc'
                         }]
                     }, function (options2, onParallel) {
@@ -12487,7 +12515,7 @@ return Utf8ArrayToStr(bff);
                             },
                             url: 'https://api.travis-ci.org/repos?' +
                                 'include=repository.current_build&' +
-                                'limit=' + options2.element.limit + '&' +
+                                'limit=100&' +
                                 'offset=' + options2.element.offset + '&' +
                                 'sort_by=current_build%3A' + options2.element.sort_by
                         };
